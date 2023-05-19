@@ -9,7 +9,7 @@ const passport = require('passport');
 const routes = require('../api/routes/v1');
 const { logs } = require('./vars');
 const strategies = require('./passport');
-// const error = require('../api/middlewares/error');
+const error = require('../api/middleware/error');
 
 const app = express();
 
@@ -29,8 +29,8 @@ passport.use('jwt', strategies.jwt);
 
 app.use('/api/v1', routes);
 
-// app.use(error.converter);
-// app.use(error.notFound);
-// app.use(error.handler);
+app.use(error.converter);
+app.use(error.notFound);
+app.use(error.handler);
 
 module.exports = app;
