@@ -1,4 +1,5 @@
 const express = require('express');
+const blogRoutes = require('./');
 
 const router = express.Router();
 
