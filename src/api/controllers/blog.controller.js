@@ -34,6 +34,28 @@ exports.create = async (req, res, next) => {
   }
 };
 
+exports.update = async (req, res, next) => {
+  try {
+    const options = { upsert: false, new: true, useFindAndModify: false };
+    const query = { _id: req.params.blogId };
+    const update = {
+      $set: {
+        title: req.body.title,
+        content: req.body.content,
+        updatedAt: Date.now,
+      },
+    };
+    const updatedBlog = await Blog.findByIdAndUpdate(
+      query,
+      update,
+      options
+    ).exec();
+    res.status(httpStatus['200_MESSAGE']).json(updatedBlog);
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.remove = async (req, res) => {
   try {
     const message = 'Deleted successfully!';
