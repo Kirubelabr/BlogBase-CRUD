@@ -3,10 +3,6 @@ const expressValidation = require('express-validation');
 const APIError = require('../errors/api-error');
 const { env } = require('../../config/vars');
 
-/**
- * Error handler. Send stacktrace only during development
- * @public
- */
 const handler = (err, req, res, next) => {
   const response = {
     code: err.status,
@@ -45,10 +41,6 @@ exports.converter = (err, req, res, next) => {
   return handler(convertedError, req, res);
 };
 
-/**
- * Catch 404 and forward to error handler
- * @public
- */
 exports.notFound = (req, res, next) => {
   const err = new APIError({
     message: 'Not found',

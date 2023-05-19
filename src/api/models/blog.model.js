@@ -30,6 +30,12 @@ const blogSchema = new mongoose.Schema(
       ref: 'Blog',
       default: null,
     },
+    isActive: {
+      desc: 'Is Active.',
+      type: Boolean,
+      default: true,
+      required: true,
+    },
   },
   {
     strict: true,
