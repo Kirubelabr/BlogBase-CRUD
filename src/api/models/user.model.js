@@ -1,221 +1,98 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-const moment = require('moment-timezone');
-const jwt = require('jwt-simple');
+const jwt = require('jsonwebtoken');
 
-const { env, jwtSecret, jwtExpirationInterval } = require('../../config/vars');
-
-const roles = ['user', 'admin'];
-
-/**
- * User Schema
- * @private
- */
-const userSchema = new mongoose.Schema(
+const UserSchema = mongoose.Schema(
   {
-    email: {
+    name: {
+      desc: "The user's name.",
+      trim: true,
       type: String,
-      desc: "User's email address",
-      match: /^\S+@\S+\.\S+$/,
+      index: true,
       required: true,
-      unique: true,
-      trim: true,
-      lowercase: true,
     },
-    phoneNumber: {
-      type: String,
-      desc: "The user's phone number.",
+    email: {
+      desc: "The user's email address.",
       trim: true,
+      type: String,
+      index: true,
       required: true,
     },
     password: {
+      trim: true,
       type: String,
       required: true,
     },
-    name: {
-      type: String,
-      index: true,
-      trim: true,
+    isActive: {
+      desc: 'Is Active.',
+      type: Boolean,
+      default: true,
+      required: true,
     },
-    role: {
-      type: String,
-      enum: roles,
-      default: 'user',
-    },
+    tokens: [
+      {
+        token: {
+          type: String,
+          required: true,
+        },
+      },
+    ],
   },
   {
     strict: true,
     versionKey: false,
-    timestamps: true,
+    timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' },
   }
 );
 
-userSchema.pre('save', async function save(next) {
-  try {
-    if (!this.isModified('password')) return next();
+UserSchema.set('toJSON', {
+  virtuals: true,
+  transform: function (doc, ret, options) {
+    ret.id = ret._id;
+    delete ret._id;
+    delete ret.__v;
+    delete ret.password;
+    delete ret.tokens;
+    delete ret.usernames;
+  },
+});
 
-    const rounds = env === 'test' ? 1 : 10;
-
-    const hash = await bcrypt.hash(this.password, rounds);
-    this.password = hash;
-
-    return next();
-  } catch (error) {
-    return next(error);
+UserSchema.pre('save', async function (next) {
+  // Hash the password before saving the user model
+  const user = this;
+  if (user.isModified('password')) {
+    user.password = await bcrypt.hash(user.password, 8);
   }
 });
 
-userSchema.method({
-  transform() {
-    const transformed = {};
-    const fields = ['id', 'name', 'email', 'role', 'createdAt'];
-
-    fields.forEach((field) => {
-      transformed[field] = this[field];
-    });
-
-    return transformed;
-  },
-
-  token() {
-    const payload = {
-      exp: moment().add(jwtExpirationInterval, 'minutes').unix(),
-      iat: moment().unix(),
-      sub: this._id,
-    };
-    return jwt.encode(payload, jwtSecret);
-  },
-
-  async passwordMatches(password) {
-    return bcrypt.compare(password, this.password);
-  },
-});
-
-userSchema.statics = {
-  roles,
-
-  /**
-   * Get user
-   *
-   * @param {ObjectId} id - The objectId of user.
-   * @returns {Promise<User, APIError>}
-   */
-  async get(id) {
-    let user;
-
-    if (mongoose.Types.ObjectId.isValid(id)) {
-      user = await this.findById(id).exec();
-    }
-    if (user) {
-      return user;
-    }
-
-    throw new APIError({
-      message: 'User does not exist',
-      status: 404,
-    });
-  },
-
-  /**
-   * Find user by email and tries to generate a JWT token
-   *
-   * @param {ObjectId} id - The objectId of user.
-   * @returns {Promise<User, APIError>}
-   */
-  async findAndGenerateToken(options) {
-    const { email, password, refreshObject } = options;
-    if (!email)
-      throw new APIError({
-        message: 'An email is required to generate a token',
-      });
-
-    const user = await this.findOne({ email }).exec();
-    const err = {
-      status: 401,
-      isPublic: true,
-    };
-    if (password) {
-      if (user && (await user.passwordMatches(password))) {
-        return { user, accessToken: user.token() };
-      }
-      err.message = 'Incorrect email or password';
-    } else if (refreshObject && refreshObject.userEmail === email) {
-      if (moment(refreshObject.expires).isBefore()) {
-        err.message = 'Invalid refresh token.';
-      } else {
-        return { user, accessToken: user.token() };
-      }
-    } else {
-      err.message = 'Incorrect email or refreshToken';
-    }
-    throw new APIError(err);
-  },
-
-  /**
-   * List users in descending order of 'createdAt' timestamp.
-   *
-   * @param {number} skip - Number of users to be skipped.
-   * @param {number} limit - Limit number of users to be returned.
-   * @returns {Promise<User[]>}
-   */
-  list({ page = 1, perPage = 30, name, email, role }) {
-    const options = omitBy({ name, email, role }, isNil);
-
-    return this.find(options)
-      .sort({ createdAt: -1 })
-      .skip(perPage * (page - 1))
-      .limit(perPage)
-      .exec();
-  },
-
-  /**
-   * Return new validation error
-   * if error is a mongoose duplicate key error
-   *
-   * @param {Error} error
-   * @returns {Error|APIError}
-   */
-  checkDuplicateEmail(error) {
-    if (error.name === 'MongoError' && error.code === 11000) {
-      return new APIError({
-        message: 'Validation Error',
-        errors: [
-          {
-            field: 'email',
-            location: 'body',
-            messages: ['"email" already exists'],
-          },
-        ],
-        status: 409,
-        isPublic: true,
-        stack: error.stack,
-      });
-    }
-    return error;
-  },
-
-  async oAuthLogin({ service, id, email, name, picture }) {
-    const user = await this.findOne({
-      $or: [{ [`services.${service}`]: id }, { email }],
-    });
-    if (user) {
-      user.services[service] = id;
-      if (!user.name) user.name = name;
-      if (!user.picture) user.picture = picture;
-      return user.save();
-    }
-    const password = uuidv4();
-    return this.create({
-      services: { [service]: id },
-      email,
-      password,
-      name,
-      picture,
-    });
-  },
+UserSchema.methods.generateAuthToken = async function () {
+  // Generate an auth token for user stays for an hour
+  const user = this;
+  const tempRoles = user.systemRoles;
+  user.systemRoles = [];
+  const token = jwt.sign({ user }, process.env.JWT_KEY, {
+    expiresIn: 7200,
+  });
+  user.tokens[0] = { token };
+  user.systemRoles = tempRoles;
+  await user.save();
+  return token;
 };
 
-/**
- * @typedef User
- */
-module.exports = mongoose.model('User', userSchema);
+UserSchema.statics.findByCredentials = async (email, password) => {
+  // Search for a user by email and password
+  const user = await User.findOne({
+    email,
+    isActive: true,
+  });
+  if (!user) {
+    throw new Error({ error: 'Invalid login credentials!' });
+  }
+  const isPasswordMatch = await bcrypt.compare(password, user.password);
+  if (!isPasswordMatch) {
+    throw new Error({ error: 'Invalid login credentials!' });
+  }
+  return user;
+};
+
+module.exports = mongoose.model('User', UserSchema);

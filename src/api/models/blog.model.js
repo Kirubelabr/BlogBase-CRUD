@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const blogSchema = new mongoose.Schema(
+const BlogSchema = new mongoose.Schema(
   {
     title: {
       type: String,
@@ -13,11 +13,11 @@ const blogSchema = new mongoose.Schema(
       desc: 'Blog content',
       required: true,
     },
-    author: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      desc: 'Blog author',
-    },
+    // author: {
+    //   type: mongoose.Schema.Types.ObjectId,
+    //   ref: 'User',
+    //   desc: 'Blog author',
+    // },
     tags: [String],
     isActive: {
       desc: 'Is Active.',
@@ -33,7 +33,7 @@ const blogSchema = new mongoose.Schema(
   }
 );
 
-blogSchema.set('toJSON', {
+BlogSchema.set('toJSON', {
   virtuals: true,
   transform: function (doc, ret, options) {
     ret.id = ret._id;
@@ -42,4 +42,6 @@ blogSchema.set('toJSON', {
   },
 });
 
-module.exports = mongoose.model('Blog', blogSchema);
+Blog = mongoose.model('Blog', BlogSchema);
+
+module.exports = Blog;
