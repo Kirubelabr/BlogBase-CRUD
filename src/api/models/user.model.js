@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { jwtSecret } = require('../../config/vars');
 
 const UserSchema = mongoose.Schema(
   {
@@ -53,7 +54,6 @@ UserSchema.set('toJSON', {
     delete ret.__v;
     delete ret.password;
     delete ret.tokens;
-    delete ret.usernames;
   },
 });
 
@@ -68,13 +68,10 @@ UserSchema.pre('save', async function (next) {
 UserSchema.methods.generateAuthToken = async function () {
   // Generate an auth token for user stays for an hour
   const user = this;
-  const tempRoles = user.systemRoles;
-  user.systemRoles = [];
-  const token = jwt.sign({ user }, process.env.JWT_KEY, {
+  const token = jwt.sign({ user }, jwtSecret, {
     expiresIn: 7200,
   });
   user.tokens[0] = { token };
-  user.systemRoles = tempRoles;
   await user.save();
   return token;
 };
@@ -95,4 +92,5 @@ UserSchema.statics.findByCredentials = async (email, password) => {
   return user;
 };
 
-module.exports = mongoose.model('User', UserSchema);
+User = mongoose.model('User', UserSchema);
+module.exports = User;

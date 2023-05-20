@@ -1,4 +1,5 @@
 const bcrypt = require('bcryptjs');
+const mongoose = require('mongoose');
 
 const User = require('../models/user.model');
 const { listPerPage } = require('../../config/vars');
@@ -20,7 +21,7 @@ exports.loadAll = async (req, res, next) => {
   }
 };
 
-exports.getUserById = async (req, res) => {
+exports.getUserById = async (req, res, next) => {
   try {
     const { userId } = req.params;
     if (userId) {
@@ -39,7 +40,6 @@ exports.createUser = async (req, res, next) => {
   try {
     const user = new User({
       ...req.body,
-      usernames: [req.body.email, req.body.phoneNumber],
     });
 
     const savedUser = await user.save();
@@ -52,10 +52,9 @@ exports.createUser = async (req, res, next) => {
 exports.updateUser = async (req, res, next) => {
   try {
     const query = { _id: req.params.userId };
-    const hashedPassword = await bcrypt.hash(req.body.password, 8);
     const update = {
-      ...req.body,
-      password: hashedPassword,
+      name: req.body.name,
+      email: req.body.email,
       updatedAt: Date.now,
     };
     const updatedUser = await User.findByIdAndUpdate(query, update, {
@@ -98,12 +97,12 @@ exports.deleteUser = async (req, res, next) => {
 
 exports.login = async (req, res, next) => {
   try {
-    const { username, password } = req.body;
-    const user = await User.findByCredentials(username, password);
+    const { email, password } = req.body;
+    const user = await User.findByCredentials(email, password);
     if (!user) {
       return res
         .status(401)
-        .send({ error: 'Login failed! Username or Password Incorrect!' });
+        .send({ error: 'Login failed! Email or Password Incorrect!' });
     }
     const token = await user.generateAuthToken();
     return res.status(200).send({ user, token });
@@ -113,11 +112,11 @@ exports.login = async (req, res, next) => {
 };
 
 exports.changePassword = async (req, res, next) => {
-  const { username, previousPassword, newPassword } = req.body;
+  const { email, previousPassword, newPassword } = req.body;
   const hashedPassword = await bcrypt.hash(newPassword, 8);
 
   try {
-    const user = await User.findByCredentials(username, previousPassword);
+    const user = await User.findByCredentials(email, previousPassword);
     if (!user) {
       return res.status(401).send({ error: 'Previous Password Is Incorrect!' });
     }
@@ -127,7 +126,7 @@ exports.changePassword = async (req, res, next) => {
       { password: hashedPassword },
       function (err, result) {
         if (err) {
-          res.status(500).json({ message: 'Something went wrong!' });
+          return res.status(500).json({ message: 'Something went wrong!' });
         }
       }
     );
