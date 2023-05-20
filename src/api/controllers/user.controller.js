@@ -5,8 +5,8 @@ const User = require('../models/user.model');
 const { listPerPage } = require('../../config/vars');
 
 exports.loadAll = async (req, res, next) => {
+  let page = req.query.page ? req.query.page - 1 : 0;
   try {
-    let page = req.query.page ? req.query.page - 1 : 0;
     const users = await User.find({ isActive: true })
       .sort({ createdAt: 'desc' })
       .limit(listPerPage)
@@ -22,8 +22,8 @@ exports.loadAll = async (req, res, next) => {
 };
 
 exports.getUserById = async (req, res, next) => {
+  const { userId } = req.params;
   try {
-    const { userId } = req.params;
     if (userId) {
       if (!mongoose.Types.ObjectId.isValid(userId)) {
         return res.status(400).json({ message: 'Invalid user ID!' });
@@ -50,13 +50,13 @@ exports.createUser = async (req, res, next) => {
 };
 
 exports.updateUser = async (req, res, next) => {
+  const query = { _id: req.params.userId };
+  const update = {
+    name: req.body.name,
+    email: req.body.email,
+    updatedAt: Date.now,
+  };
   try {
-    const query = { _id: req.params.userId };
-    const update = {
-      name: req.body.name,
-      email: req.body.email,
-      updatedAt: Date.now,
-    };
     const updatedUser = await User.findByIdAndUpdate(query, update, {
       new: true,
       runValidators: true,
@@ -68,8 +68,8 @@ exports.updateUser = async (req, res, next) => {
 };
 
 exports.deleteUser = async (req, res, next) => {
+  const { userId } = req.params;
   try {
-    const { userId } = req.params;
     if (userID) {
       if (!mongoose.Types.ObjectId.isValid(userId)) {
         return res.status(400).json({ message: 'Invalid user ID!' });
@@ -96,8 +96,8 @@ exports.deleteUser = async (req, res, next) => {
 };
 
 exports.login = async (req, res, next) => {
+  const { email, password } = req.body;
   try {
-    const { email, password } = req.body;
     const user = await User.findByCredentials(email, password);
     if (!user) {
       return res

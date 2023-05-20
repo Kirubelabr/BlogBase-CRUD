@@ -5,6 +5,7 @@ const blogValidator = Joi.object({
   intro: Joi.string().min(8).max(100).required(),
   content: Joi.string().min(10).required(),
   tags: Joi.array().items(Joi.string()),
+  author: Joi.string().required(),
 });
 
 const validateBlog = async (req, res, next) => {

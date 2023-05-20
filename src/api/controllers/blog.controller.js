@@ -4,12 +4,13 @@ const Blog = require('../models/blog.model');
 const { listPerPage } = require('../../config/vars');
 
 exports.loadAll = async (req, res, next) => {
+  let page = req.query.page ? req.query.page - 1 : 0;
   try {
-    let page = req.query.page ? req.query.page - 1 : 0;
     let blogs = await Blog.find({ isActive: true })
       .sort({
         createdAt: 'asc',
       })
+      .populate('author')
       .limit(listPerPage)
       .skip(page * listPerPage);
     const pagination = {};
@@ -23,13 +24,13 @@ exports.loadAll = async (req, res, next) => {
 };
 
 exports.getBlogById = async (req, res, next) => {
+  const { blogId } = req.params;
   try {
-    const { blogId } = req.params;
     if (blogId) {
       if (!mongoose.Types.ObjectId.isValid(blogId)) {
         return res.status(400).json({ message: 'Invalid blog ID!' });
       }
-      const blog = await Blog.findById(blogId);
+      const blog = await Blog.findById(blogId).populate('author');
       if (!blog) {
         return res
           .status(404)
@@ -46,7 +47,7 @@ exports.createBlog = async (req, res, next) => {
   try {
     if (req.body) {
       const blog = new Blog(req.body);
-      const savedBlog = await blog.save();
+      const savedBlog = await blog.save().populate('author');
       return res.status(201).json(savedBlog);
     }
   } catch (err) {
@@ -55,8 +56,8 @@ exports.createBlog = async (req, res, next) => {
 };
 
 exports.updateBlog = async (req, res, next) => {
+  const { blogId } = req.params;
   try {
-    const { blogId } = req.params;
     if (blogId) {
       if (!mongoose.Types.ObjectId.isValid(blogId)) {
         return res.status(400).json({ message: 'Invalid blog ID!' });
@@ -69,7 +70,7 @@ exports.updateBlog = async (req, res, next) => {
       const updatedBlog = await Blog.findByIdAndUpdate(query, update, {
         new: true,
         runValidators: true,
-      });
+      }).then((blog) => blog.populate('author'));
       return res.status(200).json(updatedBlog);
     }
   } catch (err) {
@@ -78,8 +79,8 @@ exports.updateBlog = async (req, res, next) => {
 };
 
 exports.deleteBlog = async (req, res, next) => {
+  const { blogId } = req.params;
   try {
-    const { blogId } = req.params;
     if (blogId) {
       if (!mongoose.Types.ObjectId.isValid(blogId)) {
         return res.status(400).json({ message: 'Invalid blog ID!' });

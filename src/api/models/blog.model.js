@@ -13,11 +13,11 @@ const BlogSchema = new mongoose.Schema(
       desc: 'Blog content',
       required: true,
     },
-    // author: {
-    //   type: mongoose.Schema.Types.ObjectId,
-    //   ref: 'User',
-    //   desc: 'Blog author',
-    // },
+    author: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      desc: 'Blog author',
+    },
     tags: [String],
     isActive: {
       desc: 'Is Active.',
