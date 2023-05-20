@@ -1,8 +1,8 @@
 const mongoose = require('mongoose');
-const httpStatus = require('http-status');
 const bcrypt = require('bcryptjs');
 const moment = require('moment-timezone');
 const jwt = require('jwt-simple');
+
 const { env, jwtSecret, jwtExpirationInterval } = require('../../config/vars');
 
 const roles = ['user', 'admin'];
@@ -31,12 +31,9 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       required: true,
-      minlength: 6,
-      maxlength: 128,
     },
     name: {
       type: String,
-      maxlength: 128,
       index: true,
       trim: true,
     },
@@ -115,7 +112,7 @@ userSchema.statics = {
 
     throw new APIError({
       message: 'User does not exist',
-      status: httpStatus.NOT_FOUND,
+      status: 404,
     });
   },
 
@@ -134,7 +131,7 @@ userSchema.statics = {
 
     const user = await this.findOne({ email }).exec();
     const err = {
-      status: httpStatus.UNAUTHORIZED,
+      status: 401,
       isPublic: true,
     };
     if (password) {
@@ -189,7 +186,7 @@ userSchema.statics = {
             messages: ['"email" already exists'],
           },
         ],
-        status: httpStatus.CONFLICT,
+        status: 409,
         isPublic: true,
         stack: error.stack,
       });

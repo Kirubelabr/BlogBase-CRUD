@@ -1,4 +1,3 @@
-const httpStatus = require('http-status');
 const expressValidation = require('express-validation');
 const APIError = require('../errors/api-error');
 const { env } = require('../../config/vars');
@@ -6,7 +5,7 @@ const { env } = require('../../config/vars');
 const handler = (err, req, res, next) => {
   const response = {
     code: err.status,
-    message: err.message || httpStatus[err.status],
+    message: err.message,
     errors: err.errors,
     stack: err.stack,
   };
@@ -44,7 +43,7 @@ exports.converter = (err, req, res, next) => {
 exports.notFound = (req, res, next) => {
   const err = new APIError({
     message: 'Not found',
-    status: httpStatus.NOT_FOUND,
+    status: 404,
   });
   return handler(err, req, res);
 };

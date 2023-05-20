@@ -2,19 +2,11 @@ const express = require('express');
 const router = express.Router();
 
 const blogController = require('../../controllers/blog.controller');
-const { auth, LOGGED_USER } = require('../../middleware/auth');
-const { validate } = require('express-validation');
-const { loadBlogs, updateBlog } = require('../../validations/blog.validation');
+const auth = require('../../middleware/auth');
 
-router
-  .route('/')
-  .get(auth(LOGGED_USER), validate(loadBlogs), blogController.loadAll)
-  .post(auth(LOGGED_USER), validate(createBlog));
-
-router
-  .route('/:blogId')
-  .get(auth(LOGGED_USER), blogController.findOne)
-  .put(auth(LOGGED_USER), validate(updateBlog), blogController.update)
-  .delete(auth(LOGGED_USER), blogController.remove);
+router.get('/', blogController.loadAll);
+router.get('/:blogId', blogController.getBlogById);
+router.post('/', blogController.createBlog);
+router.put('/', blogController.updateBlog);
 
 module.exports = router;

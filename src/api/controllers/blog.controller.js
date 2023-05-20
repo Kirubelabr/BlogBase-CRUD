@@ -1,74 +1,85 @@
-const httpStatus = require('http-status');
 const Blog = require('../models/blog.model');
+const { listPerPage } = require('../../config/vars');
 
 exports.loadAll = async (req, res, next) => {
   try {
-    const blogs = await Blog.find({ isActive: true })
+    let page = req.query.page ? req.query.page - 1 : 0;
+    let blogs = await Blog.find({ isActive: true })
       .sort({
         createdAt: 'asc',
       })
-      .exec();
-    res.json(blogs);
+      .limit(listPerPage)
+      .skip(page * listPerPage);
+    const pagination = {};
+    const count = await Blog.count();
+    pagination.currentPage = page + 1;
+    pagination.totalPage = Math.ceil(count / listPerPage);
+    return res.status(200).json({ blogs, pagination });
   } catch (err) {
     return next(err);
   }
 };
 
-exports.findOne = async (req, res, next) => {
+exports.getBlogById = async (req, res, next) => {
   try {
-    const blog = await Blog.findById(req.params.blogId).exec();
-    res.json(blog);
+    const { blogId } = req.params.id;
+    if (blogId) {
+      const blog = await Blog.findById(blogId);
+      if (!blog) {
+        return res
+          .status(404)
+          .json({ status: false, message: 'Blog not found!' });
+      }
+      return res.status(200).json({ blog });
+    }
   } catch (err) {
     next(err);
   }
 };
 
-exports.create = async (req, res, next) => {
+exports.createBlog = async (req, res, next) => {
   try {
-    const blog = new Candidate(req.body);
-    const savedBlog = await blog.save();
-    res.status(httpStatus.CREATED);
-    res.json(savedBlog);
+    if (req.body) {
+      const blog = new Blog(req.body);
+      const savedBlog = await blog.save();
+      return res.status(201).json({ savedBlog });
+    }
   } catch (err) {
     next(err);
   }
 };
 
-exports.update = async (req, res, next) => {
+exports.updateBlog = async (req, res, next) => {
   try {
-    const options = { upsert: false, new: true, useFindAndModify: false };
-    const query = { _id: req.params.blogId };
-    const update = {
-      $set: {
-        title: req.body.title,
-        content: req.body.content,
+    if (req.params.blogId) {
+      const query = { _id: req.params.blogId };
+      const update = {
+        ...req.body,
         updatedAt: Date.now,
-      },
-    };
-    const updatedBlog = await Blog.findByIdAndUpdate(
-      query,
-      update,
-      options
-    ).exec();
-    res.status(httpStatus['200_MESSAGE']).json(updatedBlog);
+      };
+      const updatedBlog = await Blog.findByIdAndUpdate(query, update, {
+        new: true,
+        runValidators: true,
+      });
+      return res.status(201).json({ updatedBlog });
+    }
   } catch (err) {
     next(err);
   }
 };
 
-exports.remove = async (req, res) => {
+exports.deleteBlog = async (req, res) => {
   try {
-    const message = 'Deleted successfully!';
-    const options = { upsert: false, new: true, useFindAndModify: false };
-    const query = { _id: req.params.blogId };
-    const update = {
-      $set: {
+    if (req.params.blogId) {
+      const message = 'Blog deleted successfully!';
+      const query = { _id: req.params.blogId };
+      const update = {
         isActive: false,
         updatedAt: Date.now,
-      },
-    };
-    await Blog.findByIdAndUpdate(query, update, options).exec();
-    res.status(httpStatus.NO_CONTENT).json({ message });
+      };
+      await Blog.findByIdAndUpdate(query, update);
+      return res.status(204).json({ message });
+    }
   } catch (err) {
     next(err);
   }

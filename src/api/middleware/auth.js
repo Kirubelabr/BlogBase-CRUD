@@ -1,54 +1,26 @@
-const httpStatus = require('http-status');
-const passport = require('passport');
+const jwt = require('jsonwebtoken');
 const User = require('../models/user.model');
-const APIError = require('../errors/api-error');
 
-const ADMIN = 'admin';
-const LOGGED_USER = '_loggedUser';
-
-const handleJWT = (req, res, next, roles) => async (err, user, info) => {
-  const error = err || info;
-  const logIn = Promise.promisify(req.logIn);
-  const apiError = new APIError({
-    message: error ? error.message : 'Unauthorized',
-    status: httpStatus.UNAUTHORIZED,
-    stack: error ? error.stack : undefined,
-  });
-
+const auth = async (req, res, next) => {
   try {
-    if (error || !user) throw error;
-    await logIn(user, { session: false });
-  } catch (e) {
-    return next(apiError);
-  }
-
-  if (roles === LOGGED_USER) {
-    if (user.role !== 'admin' && req.params.userId !== user._id.toString()) {
-      apiError.status = httpStatus.FORBIDDEN;
-      apiError.message = 'Forbidden';
-      return next(apiError);
+    const token = req.headers.authorization.split(' ')[1];
+    const data = jwt.verify(token, process.env.JWT_KEY);
+    const user = await User.findOne({ 'tokens.token': token });
+    if (!user) {
+      res
+        .status(401)
+        .send({ message: 'Not authorized to access this resource!' });
     }
-  } else if (!roles.includes(user.role)) {
-    apiError.status = httpStatus.FORBIDDEN;
-    apiError.message = 'Forbidden';
-    return next(apiError);
-  } else if (err || !user) {
-    return next(apiError);
+    req.user = user;
+    req.token = token;
+    next();
+  } catch (error) {
+    res
+      .status(401)
+      .json({
+        message: 'Unauthorized or Your Session Expired! May Login Back Again!',
+      });
   }
-
-  req.user = user;
-
-  return next();
 };
 
-exports.ADMIN = ADMIN;
-exports.LOGGED_USER = LOGGED_USER;
-
-exports.auth =
-  (roles = User.roles) =>
-  (req, res, next) =>
-    passport.authenticate(
-      'jwt',
-      { session: false },
-      handleJWT(req, res, next, roles)
-    )(req, res, next);
+module.exports = auth;

@@ -1,11 +1,5 @@
 const mongoose = require('mongoose');
-const httpStatus = require('http-status');
-const { env, jwtSecret, jwtExpirationInterval } = require('../../config/vars');
 
-/**
- * Blog Schema
- * @private
- */
 const blogSchema = new mongoose.Schema(
   {
     title: {
@@ -13,6 +7,7 @@ const blogSchema = new mongoose.Schema(
       desc: 'Blog title',
       required: true,
     },
+    intro: { type: String, required: true },
     content: {
       type: String,
       desc: 'Blog content',
@@ -22,14 +17,8 @@ const blogSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       desc: 'Blog author',
-      required: true,
     },
-    type: { type: String, enum: ['blog', 'comment'], required: true },
-    parent: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Blog',
-      default: null,
-    },
+    tags: [String],
     isActive: {
       desc: 'Is Active.',
       type: Boolean,
@@ -44,7 +33,13 @@ const blogSchema = new mongoose.Schema(
   }
 );
 
-/**
- * @typedef Blog
- */
+blogSchema.set('toJSON', {
+  virtuals: true,
+  transform: function (doc, ret, options) {
+    ret.id = ret._id;
+    delete ret._id;
+    delete ret.__v;
+  },
+});
+
 module.exports = mongoose.model('Blog', blogSchema);
