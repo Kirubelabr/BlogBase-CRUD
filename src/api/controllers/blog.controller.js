@@ -8,7 +8,7 @@ exports.loadAll = async (req, res, next) => {
   try {
     let blogs = await Blog.find({ isActive: true })
       .sort({
-        createdAt: 'asc',
+        createdAt: 'desc',
       })
       .populate('author')
       .limit(listPerPage)
@@ -46,8 +46,11 @@ exports.getBlogById = async (req, res, next) => {
 exports.createBlog = async (req, res, next) => {
   try {
     if (req.body) {
-      const blog = new Blog(req.body);
-      const savedBlog = await blog.save().populate('author');
+      let blog = new Blog(req.body);
+      // blog.author = req.body.authorId; // disabled Auth not available on frontend
+      const savedBlog = await blog
+        .save()
+        .then((blog) => blog.populate('author'));
       return res.status(201).json(savedBlog);
     }
   } catch (err) {
@@ -80,25 +83,27 @@ exports.updateBlog = async (req, res, next) => {
 
 exports.deleteBlog = async (req, res, next) => {
   const { blogId } = req.params;
+  console.log('BLOG ID: ', blogId);
   try {
     if (blogId) {
       if (!mongoose.Types.ObjectId.isValid(blogId)) {
         return res.status(400).json({ message: 'Invalid blog ID!' });
       }
-      const blog = await Blog.find({ _id: blogId });
+      const blog = await Blog.find({ _id: blogId, isActive: true });
       if (!blog) {
         return res.status(404).json({ message: 'Blog not found!' });
       }
-      if (blog && !blog.isActive) {
-        return res.status(400).json({ message: 'Blog already deleted!' });
-      }
+
       const message = 'Blog deleted successfully!';
       const query = { _id: blogId };
       const update = {
         isActive: false,
         updatedAt: Date.now,
       };
-      await Blog.findByIdAndUpdate(query, update); // soft delete instead of remove
+      await Blog.findByIdAndUpdate(query, update, {
+        new: true,
+        runValidators: true,
+      }); // soft delete instead of remove
       return res.status(200).json({ message });
     }
   } catch (err) {
