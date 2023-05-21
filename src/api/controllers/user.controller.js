@@ -38,6 +38,13 @@ exports.getUserById = async (req, res, next) => {
 
 exports.createUser = async (req, res, next) => {
   try {
+    const emailExist = await User.findOne({ email: req.body.email });
+    console.log(emailExist);
+    if (emailExist) {
+      return res
+        .status(400)
+        .json({ message: 'Email exists use a different one!' });
+    }
     const user = new User({
       ...req.body,
     });
