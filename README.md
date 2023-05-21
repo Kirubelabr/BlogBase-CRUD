@@ -6,6 +6,8 @@ This project is based on NodeJS, ExpressJS with MongoDB as it's database and Mon
 
 You need to install all dependencies
 
+Frontend App is located in - https://github.com/Kirubelabr/vite-reactify
+
 yarn install
 
 ## Available Scripts
