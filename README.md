@@ -61,7 +61,7 @@ And after registered you can sign in with
   "password": "test@123"
 }`
 
-## Technologies Used
+## What's being Used
 
 - NodeJS
 - ExpressJS
